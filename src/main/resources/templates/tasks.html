@@ -23,6 +23,9 @@
 </head>
 <body>
 <div class="container py-5" style="max-width: 760px;">
+    <a th:href="${'/tasks/export' + filterQuery}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-download"></i> Export CSV
+    </a>
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h1 class="fw-bold mb-0">📝 Todo Application</h1>
         <form th:action="@{/logout}" method="post" class="d-flex align-items-center gap-2 mb-0">
@@ -75,6 +78,7 @@
 
     <div th:if="${message}" class="alert alert-info alert-dismissible fade show" role="alert">
         <span th:text="${message}"></span>
+        <div th:if="${param.locked}" class="alert alert-warning">Too many failed attempts. This account is locked for 15 minutes.</div>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 

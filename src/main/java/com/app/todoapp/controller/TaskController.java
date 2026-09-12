@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.List;
+
 @Controller
 @RequestMapping("/tasks")
 public class TaskController {
@@ -127,6 +129,45 @@ public class TaskController {
                              @RequestParam(required = false) String category) {
         taskService.toggleTask(id, principal.getUser());
         return "redirect:/tasks" + buildFilterQuery(keyword, priority, completed, category);
+    }
+
+    @GetMapping("/export")
+    public void exportTasks(@AuthenticationPrincipal CustomUserDetails principal,
+                            @RequestParam(required = false) String keyword,
+                            @RequestParam(required = false) Priority priority,
+                            @RequestParam(required = false) Boolean completed,
+                            @RequestParam(required = false) String category,
+                            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        List<Task> tasks = taskService.searchTasks(principal.getUser(), keyword, priority, completed, category);
+
+        response.setContentType("text/csv");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"tasks.csv\"");
+
+        java.io.PrintWriter writer = response.getWriter();
+        writer.println("Title,Priority,Status,Due Date,Category");
+        for (Task task : tasks) {
+            writer.println(String.join(",",
+                    csvEscape(task.getTitle()),
+                    csvEscape(task.getPriority().toString()),
+                    csvEscape(task.isCompleted() ? "Completed" : "Active"),
+                    csvEscape(task.getDueDate() != null ? task.getDueDate().toString() : ""),
+                    csvEscape(task.getCategory() != null ? task.getCategory() : "")
+            ));
+        }
+        writer.flush();
+    }
+
+    // Wraps a field in quotes (doubling any internal quotes) if it contains a comma, quote, or newline -
+// otherwise a task titled "Buy milk, eggs" would silently corrupt the CSV's column structure
+    private String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 
     @PostMapping("/bulk/complete-all")
