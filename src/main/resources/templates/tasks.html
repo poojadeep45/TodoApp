@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Todo Application</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body { background-color: #f4f6f8; }
+        .text-strikethrough { text-decoration: line-through; color: #9aa0a6; }
+        .task-card { border-left: 4px solid transparent; transition: box-shadow .15s ease; }
+        .task-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+        .priority-HIGH { border-left-color: #dc3545; }
+        .priority-MEDIUM { border-left-color: #fd7e14; }
+        .priority-LOW { border-left-color: #20c997; }
+        .badge-HIGH { background-color: #dc3545; }
+        .badge-MEDIUM { background-color: #fd7e14; }
+        .badge-LOW { background-color: #20c997; }
+        .due-overdue { color: #dc3545; font-weight: 600; }
+        .empty-state { text-align: center; color: #9aa0a6; padding: 3rem 0; }
+    </style>
+</head>
+<body>
+<div class="container py-5" style="max-width: 760px;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h1 class="fw-bold mb-0">📝 Todo Application</h1>
+        <form th:action="@{/logout}" method="post" class="d-flex align-items-center gap-2 mb-0">
+            <span class="text-muted small" th:text="'Logged in as ' + ${username}"></span>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-box-arrow-right"></i> Log out
+            </button>
+        </form>
+    </div>
+
+    <div class="mb-4">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+            <span th:text="${stats.completed()} + ' of ' + ${stats.total()} + ' tasks completed'">0 of 0 tasks completed</span>
+            <span th:text="${stats.percentComplete()} + '%'">0%</span>
+        </div>
+        <div class="progress" style="height: 10px;">
+            <div class="progress-bar bg-success" role="progressbar"
+                 th:style="'width: ' + ${stats.percentComplete()} + '%'"
+                 th:attr="aria-valuenow=${stats.percentComplete()}" aria-valuemin="0" aria-valuemax="100">
+            </div>
+        </div>
+    </div>
+
+    <div th:if="${not reminders.empty}" class="card shadow-sm mb-4 border-warning">
+        <div class="card-body">
+            <h6 class="card-title mb-2"><i class="bi bi-bell"></i> Reminders</h6>
+
+            <div th:if="${not #lists.isEmpty(reminders.overdue())}" class="mb-2">
+                <span class="badge bg-danger">Overdue</span>
+                <span th:each="t, iter : ${reminders.overdue()}">
+                <a th:href="${'/tasks/' + t.id + '/edit'}" th:text="${t.title}" class="link-danger"></a><span th:if="${!iter.last}">, </span>
+            </span>
+            </div>
+
+            <div th:if="${not #lists.isEmpty(reminders.dueToday())}" class="mb-2">
+                <span class="badge bg-warning text-dark">Due today</span>
+                <span th:each="t, iter : ${reminders.dueToday()}">
+                <a th:href="${'/tasks/' + t.id + '/edit'}" th:text="${t.title}"></a><span th:if="${!iter.last}">, </span>
+            </span>
+            </div>
+
+            <div th:if="${not #lists.isEmpty(reminders.dueSoon())}">
+                <span class="badge bg-info text-dark">Due soon</span>
+                <span th:each="t, iter : ${reminders.dueSoon()}">
+                <a th:href="${'/tasks/' + t.id + '/edit'}" th:text="${t.title + ' (' + t.formattedDueDate + ')'}"></a><span th:if="${!iter.last}">, </span>
+            </span>
+            </div>
+        </div>
+    </div>
+
+    <div th:if="${message}" class="alert alert-info alert-dismissible fade show" role="alert">
+        <span th:text="${message}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${editTask != null}" class="card shadow-sm mb-4 border-primary">
+        <div class="card-body">
+            <h5 class="card-title mb-3"><i class="bi bi-pencil-square"></i> Edit Task</h5>
+            <form th:action="@{/tasks/{id}(id=${editTask.id})}" th:object="${editTask}" method="post">
+                <input type="hidden" th:field="*{id}"/>
+                <input type="hidden" name="filterQueryString" th:value="${filterQuery}"/>
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" th:field="*{title}"
+                           th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'">
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Priority</label>
+                        <select class="form-select" th:field="*{priority}">
+                            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Due date</label>
+                        <input type="date" class="form-control" th:field="*{dueDate}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Category <span class="text-muted">(optional)</span></label>
+                    <input type="text" class="form-control" th:field="*{category}" list="categoryOptions"
+                           placeholder="e.g. Work, Personal">
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save changes</button>
+                <a th:href="@{/tasks}" class="btn btn-outline-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4 bg-light">
+        <div class="card-body">
+            <form th:action="@{/tasks}" method="get" class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <input type="text" name="keyword" class="form-control" placeholder="Search by title..."
+                           th:value="${keyword}">
+                </div>
+                <div class="col-md-2">
+                    <select name="priority" class="form-select">
+                        <option value="">All priorities</option>
+                        <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}"
+                                th:selected="${p == selectedPriority}"></option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="completed" class="form-select">
+                        <option value="">All statuses</option>
+                        <option value="false" th:selected="${selectedCompleted == false}">Active</option>
+                        <option value="true" th:selected="${selectedCompleted == true}">Completed</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="category" class="form-select">
+                        <option value="">All categories</option>
+                        <option th:each="c : ${existingCategories}" th:value="${c}" th:text="${c}"
+                                th:selected="${c == selectedCategory}"></option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-secondary w-100"><i class="bi bi-search"></i></button>
+                </div>
+            </form>
+            <a th:if="${keyword != null or selectedPriority != null or selectedCompleted != null or selectedCategory != null}"
+               th:href="@{/tasks}" class="d-inline-block mt-2 small">
+                <i class="bi bi-x-circle"></i> Clear filters
+            </a>
+        </div>
+    </div>
+
+    <div th:if="${not #lists.isEmpty(tasks)}" class="d-flex justify-content-end gap-2 mb-2">
+        <form th:action="@{/tasks/bulk/complete-all}" method="post">
+            <input type="hidden" th:if="${keyword != null}" name="keyword" th:value="${keyword}"/>
+            <input type="hidden" th:if="${selectedPriority != null}" name="priority" th:value="${selectedPriority}"/>
+            <input type="hidden" th:if="${selectedCompleted != null}" name="completed" th:value="${selectedCompleted}"/>
+            <input type="hidden" th:if="${selectedCategory != null}" name="category" th:value="${selectedCategory}"/>
+            <button type="submit" class="btn btn-sm btn-outline-success">
+                <i class="bi bi-check2-all"></i> Mark all complete
+            </button>
+        </form>
+        <form th:action="@{/tasks/bulk/clear-completed}" method="post"
+              onsubmit="return confirm('Delete all completed tasks currently shown?');">
+            <input type="hidden" th:if="${keyword != null}" name="keyword" th:value="${keyword}"/>
+            <input type="hidden" th:if="${selectedPriority != null}" name="priority" th:value="${selectedPriority}"/>
+            <input type="hidden" th:if="${selectedCompleted != null}" name="completed" th:value="${selectedCompleted}"/>
+            <input type="hidden" th:if="${selectedCategory != null}" name="category" th:value="${selectedCategory}"/>
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash3"></i> Clear completed
+            </button>
+        </form>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form th:action="@{/tasks}" th:object="${task}" method="post">
+                <input type="hidden" name="filterQueryString" th:value="${filterQuery}"/>
+                <div class="row g-2 align-items-start">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control form-control-lg" th:field="*{title}"
+                               th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'"
+                               placeholder="Add a new task...">
+                        <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select form-select-lg" th:field="*{priority}">
+                            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" class="form-control form-control-lg" th:field="*{dueDate}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control form-control-lg" th:field="*{category}"
+                               list="categoryOptions" placeholder="Category (optional)">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-plus-lg"></i></button>
+                    </div>
+                </div>
+            </form>
+            <datalist id="categoryOptions">
+                <option th:each="c : ${existingCategories}" th:value="${c}"></option>
+            </datalist>
+        </div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(tasks)}" class="empty-state">
+        <i class="bi bi-clipboard-check" style="font-size: 2.5rem;"></i>
+        <p class="mt-2">No tasks yet — add one above to get started.</p>
+    </div>
+
+    <div th:each="t : ${tasks}"
+         class="card mb-2 task-card"
+         th:classappend="${'priority-' + t.priority}">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div class="flex-grow-1">
+                <div>
+                    <span th:classappend="${t.completed} ? 'text-strikethrough'" th:text="${t.title}">Task Title</span>
+                    <span class="badge ms-2" th:classappend="${'badge-' + t.priority}" th:text="${t.priority}"></span>
+                    <span th:if="${t.category != null}" class="badge bg-secondary ms-1" th:text="${t.category}"></span>
+                </div>
+                <small th:if="${t.dueDate != null}"
+                       th:classappend="${t.overdue} ? 'due-overdue' : 'text-muted'">
+                    <i class="bi bi-calendar-event"></i>
+                    <span th:text="${t.formattedDueDate}"></span>
+                    <span th:if="${t.overdue}"> (overdue)</span>
+                </small>
+            </div>
+            <div class="text-nowrap">
+                <a th:href="${'/tasks/' + t.id + '/toggle' + filterQuery}" class="btn btn-outline-secondary btn-sm" title="Toggle complete">
+                    <i class="bi bi-check2-circle"></i>
+                </a>
+                <a th:href="${'/tasks/' + t.id + '/edit' + filterQuery}" class="btn btn-outline-primary btn-sm ms-1" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <a th:href="${'/tasks/' + t.id + '/delete' + filterQuery}" class="btn btn-outline-danger btn-sm ms-1" title="Delete"
+                   onclick="return confirm('Delete this task?');">
+                    <i class="bi bi-trash"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
