@@ -35,4 +35,10 @@ public class User {
     @Column(nullable = false)
     @lombok.ToString.Exclude
     private String password;
+
+    @Builder.Default
+    private int failedAttempts = 0;
+
+    // Null = not locked. If set and in the future, the account is locked until this instant.
+    private java.time.LocalDateTime lockedUntil;
 }

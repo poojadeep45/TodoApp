@@ -40,7 +40,8 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        java.time.LocalDateTime lockedUntil = user.getLockedUntil();
+        return lockedUntil == null || lockedUntil.isBefore(java.time.LocalDateTime.now());
     }
 
     @Override
