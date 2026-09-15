@@ -20,6 +20,9 @@ public class SecurityConfig {
     @Autowired
     private CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 
+    @Autowired
+    private CustomUserDetailsService customUserDetailsService;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -47,7 +50,7 @@ public class SecurityConfig {
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/register").permitAll()
+                        .requestMatchers("/login", "/register", "/forgot-password", "/reset-password").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .formLogin(form -> form
@@ -57,6 +60,11 @@ public class SecurityConfig {
                         .defaultSuccessUrl("/tasks", true)
                         .failureHandler(customAuthenticationFailureHandler)
                         .permitAll())
+                .rememberMe(remember -> remember
+                        .key("todoapp-remember-me-signing-key")
+                        .rememberMeParameter("remember-me")
+                        .tokenValiditySeconds(30 * 24 * 60 * 60)
+                        .userDetailsService(customUserDetailsService))
                 .logout(logout -> logout
                         .logoutSuccessUrl("/login?logout")
                         .permitAll());

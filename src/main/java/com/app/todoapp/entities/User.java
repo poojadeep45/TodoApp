@@ -41,4 +41,8 @@ public class User {
 
     // Null = not locked. If set and in the future, the account is locked until this instant.
     private java.time.LocalDateTime lockedUntil;
+
+    // Null = no reset in progress. Cleared after a successful reset or once expired.
+    private String resetToken;
+    private java.time.LocalDateTime resetTokenExpiry;
 }
