@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Shared two-column shell for all auth pages (login/register/forgot-password/reset-password).
+  Usage from a calling page:
+
+    <div th:replace="~{fragments/auth-layout :: layout('Page title', 'Subtitle text', ~{::#auth-content})}">
+      <div id="auth-content"> ... this page's own form markup ... </div>
+    </div>
+
+  The calling page still needs its own <head> with the Bootstrap/icons CDN links and its own
+  page-specific <style> block for the side-panel CSS classes below - see login.html for reference.
+  Keeping those in each page (rather than trying to fragment-share <head> too) keeps this simple
+  and avoids brittle head-merging tricks; the actual layout structure is what's shared here.
+-->
+<div th:fragment="layout(title, subtitle, content)" class="auth-wrapper">
+    <div class="auth-side-panel">
+        <div class="auth-side-content">
+            <h1 class="auth-brand">📝 Todo Application</h1>
+            <p class="auth-tagline" th:text="${subtitle}">Manage your tasks, your way.</p>
+            <ul class="auth-feature-list">
+                <li><i class="bi bi-flag"></i> Priorities, due dates &amp; categories</li>
+                <li><i class="bi bi-search"></i> Search, filter &amp; bulk actions</li>
+                <li><i class="bi bi-shield-lock"></i> Your tasks, private to your account</li>
+                <li><i class="bi bi-cloud-arrow-down"></i> Export anytime as CSV</li>
+            </ul>
+        </div>
+    </div>
+    <div class="auth-form-panel">
+        <div class="auth-form-card">
+            <h2 class="auth-form-title" th:text="${title}">Title</h2>
+            <div th:replace="${content}"></div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
